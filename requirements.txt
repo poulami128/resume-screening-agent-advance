@@ -1,0 +1,11 @@
+sentence-transformers
+torch
+scikit-learn
+streamlit
+openai
+python-dotenv
+python-docx
+pypdf
+pandas
+scikit-learn
+tqdm
