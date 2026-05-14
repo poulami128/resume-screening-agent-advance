@@ -1,5 +1,10 @@
 import streamlit as st
 import pandas as pd
+import pdfplumber
+import docx
+import re
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 import streamlit.components.v1 as components
 
 # ======================================================
@@ -30,39 +35,20 @@ html, body, [class*="css"]{
     color:white;
 }
 
-/* HIDE STREAMLIT */
-
-#MainMenu{
-    visibility:hidden;
-}
-
-footer{
-    visibility:hidden;
-}
-
-header{
-    visibility:hidden;
-}
-
-/* MAIN LAYOUT */
+#MainMenu{visibility:hidden;}
+footer{visibility:hidden;}
+header{visibility:hidden;}
 
 .block-container{
-
     padding-top:1rem;
-
-    padding-left:3rem;
-
-    padding-right:3rem;
-
-    padding-bottom:2rem;
-
-    max-width:100% !important;
+    padding-left:2rem;
+    padding-right:2rem;
+    padding-bottom:1rem;
+    max-width:1300px !important;
+    margin:auto;
 }
 
-/* SIDEBAR */
-
 section[data-testid="stSidebar"]{
-
     background:
     linear-gradient(
         180deg,
@@ -73,18 +59,13 @@ section[data-testid="stSidebar"]{
     border-right:
     1px solid rgba(255,255,255,0.05);
 
-    width:340px !important;
+    width:420px !important;
 }
 
-/* BUTTON */
-
 .stButton > button{
-
     width:100%;
-    height:58px;
-
+    height:60px;
     border:none;
-
     border-radius:18px;
 
     background:
@@ -95,44 +76,29 @@ section[data-testid="stSidebar"]{
     );
 
     color:white;
-
     font-size:18px;
-
     font-weight:700;
 }
 
-/* FILE UPLOADER */
-
 [data-testid="stFileUploader"]{
-
     background:#0f172a;
-
     border:
     1.5px dashed rgba(255,255,255,0.10);
 
     border-radius:20px;
-
     padding:20px;
 }
 
-/* TEXT AREA */
-
 textarea{
-
     background:#0f172a !important;
-
     color:white !important;
-
     border-radius:20px !important;
 
     border:
     1px solid rgba(255,255,255,0.08) !important;
 }
 
-/* METRIC CARD */
-
 .metric-card{
-
     background:
     linear-gradient(
         145deg,
@@ -145,28 +111,16 @@ textarea{
 
     border-radius:24px;
 
-    padding:28px;
+    padding:24px;
 
-    min-height:170px;
+    min-height:150px;
 
     box-shadow:
     0px 10px 40px rgba(0,0,0,0.35);
 }
 
-/* DATAFRAME */
-
-[data-testid="stDataFrame"]{
-    width:100% !important;
-    border-radius:20px;
-    overflow:hidden;
-}
-
-/* SKILLS */
-
 .skill{
-
     background:#163326;
-
     color:#4ade80;
 
     padding:7px 12px;
@@ -181,24 +135,99 @@ textarea{
 }
 
 .missing{
-
     background:#1e293b;
-
     color:#cbd5e1;
-}
-
-/* BETTER SPACING */
-
-.element-container{
-    margin-bottom:0.8rem;
-}
-
-div[data-testid="column"]{
-    padding:0.2rem;
 }
 
 </style>
 """, unsafe_allow_html=True)
+
+# ======================================================
+# SKILLS DATABASE
+# ======================================================
+
+SKILLS = [
+
+    "python","java","sql","machine learning","tensorflow",
+    "pandas","numpy","nlp","aws","docker","kubernetes",
+    "html","css","javascript","react","flask","django",
+    "data science","deep learning","opencv","power bi",
+    "excel","communication","leadership","api","git"
+
+]
+
+# ======================================================
+# FUNCTIONS
+# ======================================================
+
+def extract_text_from_pdf(file):
+
+    text = ""
+
+    with pdfplumber.open(file) as pdf:
+
+        for page in pdf.pages:
+
+            extracted = page.extract_text()
+
+            if extracted:
+                text += extracted
+
+    return text
+
+
+def extract_text_from_docx(file):
+
+    doc = docx.Document(file)
+
+    text = ""
+
+    for para in doc.paragraphs:
+        text += para.text + " "
+
+    return text
+
+
+def extract_resume_text(file):
+
+    if file.name.endswith(".pdf"):
+        return extract_text_from_pdf(file)
+
+    elif file.name.endswith(".docx"):
+        return extract_text_from_docx(file)
+
+    elif file.name.endswith(".txt"):
+        return str(file.read(), "utf-8")
+
+    return ""
+
+
+def calculate_similarity(resume_text, jd_text):
+
+    documents = [resume_text, jd_text]
+
+    cv = CountVectorizer()
+
+    matrix = cv.fit_transform(documents)
+
+    similarity = cosine_similarity(matrix)[0][1]
+
+    return round(similarity * 100)
+
+
+def extract_skills(text):
+
+    found = []
+
+    text = text.lower()
+
+    for skill in SKILLS:
+
+        if skill.lower() in text:
+
+            found.append(skill.title())
+
+    return list(set(found))
 
 # ======================================================
 # SIDEBAR
@@ -214,335 +243,393 @@ with st.sidebar:
 
     st.subheader("Upload Resumes")
 
-    st.file_uploader(
-        "Upload Files",
-        accept_multiple_files=True
+    uploaded_files = st.file_uploader(
+        "Upload Resume Files",
+        accept_multiple_files=True,
+        type=["pdf","docx","txt"]
     )
 
     st.subheader("Job Description")
 
-    st.text_area(
+    jd_text = st.text_area(
         "Paste JD Here",
-        height=220
+        height=260
     )
-
-    st.checkbox("Use Sample Resumes")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     run = st.button("🚀 Run Screening")
 
 # ======================================================
-# DATA
-# ======================================================
-
-data = [
-
-    {
-        "name":"Aarav Sharma",
-        "score":92,
-        "role":"Data Scientist",
-        "matched":["Python","Machine Learning","SQL","TensorFlow"],
-        "missing":["Kubernetes"]
-    },
-
-    {
-        "name":"Priya Patel",
-        "score":78,
-        "role":"ML Engineer",
-        "matched":["Python","SQL","Pandas","NLP"],
-        "missing":["Docker","AWS"]
-    },
-
-    {
-        "name":"Rohan Verma",
-        "score":65,
-        "role":"Backend Developer",
-        "matched":["Python","Java","SQL"],
-        "missing":["TensorFlow","Kubernetes"]
-    }
-
-]
-
-# ======================================================
-# MAIN UI
+# MAIN
 # ======================================================
 
 if run:
 
-    st.markdown("""
+    if not uploaded_files:
 
-    <p style="
-    color:#94a3b8;
-    font-size:18px;
-    margin-bottom:0px;">
+        st.warning("Please upload resumes")
 
-    Welcome back, Recruiter 👋
+    elif not jd_text.strip():
 
-    </p>
+        st.warning("Please enter Job Description")
 
-    <h1 style="
-    font-size:52px;
-    margin-top:5px;
-    color:white;">
+    else:
 
-    Resume Screening Dashboard
+        results = []
 
-    </h1>
+        jd_skills = extract_skills(jd_text)
 
-    <p style="
-    color:#94a3b8;
-    font-size:18px;
-    margin-bottom:40px;">
+        for file in uploaded_files:
 
-    Smart ATS Matching • AI-Powered Analysis • Better Hiring Decisions
+            resume_text = extract_resume_text(file)
 
-    </p>
-
-    """, unsafe_allow_html=True)
-
-    # ==================================================
-    # METRICS
-    # ==================================================
-
-    c1,c2,c3,c4 = st.columns(
-        [1,1,1,1],
-        gap="large"
-    )
-
-    metrics = [
-
-        ("📄","Total Resumes","12"),
-        ("📈","Highest Match","92%"),
-        ("📊","Average Match","68%"),
-        ("🏆","Shortlisted","4")
-
-    ]
-
-    for col, metric in zip([c1,c2,c3,c4], metrics):
-
-        icon,title,value = metric
-
-        with col:
-
-            st.markdown(f"""
-            <div class="metric-card">
-
-            <div style="font-size:40px;">
-            {icon}
-            </div>
-
-            <p style="
-            color:#94a3b8;
-            margin-top:15px;
-            font-size:16px;">
-
-            {title}
-
-            </p>
-
-            <h1 style="
-            font-size:42px;
-            margin-top:0px;
-            color:white;">
-
-            {value}
-
-            </h1>
-
-            </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ==================================================
-    # TOP MATCHES
-    # ==================================================
-
-    st.markdown("""
-    <h2 style="color:white;">
-    🏆 Top Matches
-    </h2>
-    """, unsafe_allow_html=True)
-
-    cols = st.columns(
-        [1,1,1],
-        gap="large"
-    )
-
-    for col, candidate in zip(cols, data):
-
-        matched_html = ""
-
-        for skill in candidate["matched"]:
-
-            matched_html += f"""
-            <span class="skill">
-            {skill}
-            </span>
-            """
-
-        missing_html = ""
-
-        for skill in candidate["missing"]:
-
-            missing_html += f"""
-            <span class="skill missing">
-            {skill}
-            </span>
-            """
-
-        card_html = f"""
-
-        <html>
-
-        <body style="
-        margin:0;
-        background:transparent;
-        font-family:Inter,sans-serif;">
-
-        <div style="
-
-        background:
-        linear-gradient(
-            145deg,
-            #0f172a,
-            #131f3d
-        );
-
-        border:
-        1px solid rgba(255,255,255,0.05);
-
-        border-radius:24px;
-
-        padding:24px;
-
-        height:380px;
-
-        color:white;
-
-        box-shadow:
-        0px 10px 40px rgba(0,0,0,0.35);
-
-        ">
-
-            <div style="
-            display:flex;
-            justify-content:space-between;
-            align-items:center;">
-
-                <div>
-
-                    <h2 style="
-                    margin-bottom:0px;
-                    color:white;">
-
-                    {candidate["name"]}
-
-                    </h2>
-
-                    <p style="
-                    color:#94a3b8;">
-
-                    {candidate["role"]}
-
-                    </p>
-
-                </div>
-
-                <div style="
-
-                width:90px;
-                height:90px;
-
-                border-radius:50%;
-
-                border:6px solid #22c55e;
-
-                display:flex;
-                align-items:center;
-                justify-content:center;
-
-                font-size:28px;
-                font-weight:800;
-
-                color:white;
-
-                ">
-
-                {candidate["score"]}%
-
-                </div>
-
-            </div>
-
-            <br>
-
-            <div style="
-            height:10px;
-            background:#1e293b;
-            border-radius:999px;
-            overflow:hidden;">
-
-                <div style="
-                width:{candidate["score"]}%;
-                height:100%;
-                background:
-                linear-gradient(
-                    90deg,
-                    #22c55e,
-                    #3b82f6
-                );">
-                </div>
-
-            </div>
-
-            <br>
-
-            <h4 style="color:white;">
-            Matched Skills
-            </h4>
-
-            {matched_html}
-
-            <br><br>
-
-            <h4 style="color:white;">
-            Missing Skills
-            </h4>
-
-            {missing_html}
-
-        </div>
-
-        </body>
-
-        </html>
-
-        """
-
-        with col:
-            components.html(
-                card_html,
-                height=390,
-                scrolling=False
+            score = calculate_similarity(
+                resume_text,
+                jd_text
             )
 
-    st.markdown("<br>", unsafe_allow_html=True)
+            resume_skills = extract_skills(resume_text)
 
-    # ==================================================
-    # TABLE
-    # ==================================================
+            matched = [
+                skill for skill in resume_skills
+                if skill in jd_skills
+            ]
 
-    st.markdown("""
-    <h2 style="color:white;">
-    📋 All Results
-    </h2>
-    """, unsafe_allow_html=True)
+            missing = [
+                skill for skill in jd_skills
+                if skill not in resume_skills
+            ]
 
-    df = pd.DataFrame(data)
+            role = "Software Engineer"
 
-    st.dataframe(
-        df,
-        use_container_width=True
-    )
+            if "Machine Learning" in matched:
+                role = "ML Engineer"
+
+            elif "Tensorflow" in matched:
+                role = "AI Engineer"
+
+            elif "React" in matched:
+                role = "Frontend Developer"
+
+            results.append({
+
+                "name": file.name,
+                "score": score,
+                "role": role,
+                "matched": matched[:6],
+                "missing": missing[:6]
+
+            })
+
+        results = sorted(
+            results,
+            key=lambda x: x["score"],
+            reverse=True
+        )
+
+        # ==================================================
+        # HEADER
+        # ==================================================
+
+        st.markdown("""
+
+        <p style="
+        color:#94a3b8;
+        font-size:16px;
+        margin-bottom:0px;">
+
+        Welcome back, Recruiter 👋
+
+        </p>
+
+        <h1 style="
+        font-size:42px;
+        margin-top:5px;
+        color:white;">
+
+        Resume Screening Dashboard
+
+        </h1>
+
+        <p style="
+        color:#94a3b8;
+        font-size:16px;
+        margin-bottom:30px;">
+
+        Smart ATS Matching • AI-Powered Analysis • Better Hiring Decisions
+
+        </p>
+
+        """, unsafe_allow_html=True)
+
+        # ==================================================
+        # METRICS
+        # ==================================================
+
+        highest = max([r["score"] for r in results])
+
+        average = round(
+            sum([r["score"] for r in results]) / len(results)
+        )
+
+        shortlisted = len([
+            r for r in results if r["score"] >= 70
+        ])
+
+        c1,c2,c3,c4 = st.columns(4)
+
+        metrics = [
+
+            ("📄","Total Resumes",str(len(results))),
+            ("📈","Highest Match",f"{highest}%"),
+            ("📊","Average Match",f"{average}%"),
+            ("🏆","Shortlisted",str(shortlisted))
+
+        ]
+
+        for col, metric in zip([c1,c2,c3,c4], metrics):
+
+            icon,title,value = metric
+
+            with col:
+
+                st.markdown(f"""
+                <div class="metric-card">
+
+                <div style="font-size:32px;">
+                {icon}
+                </div>
+
+                <p style="
+                color:#94a3b8;
+                margin-top:12px;
+                font-size:15px;">
+
+                {title}
+
+                </p>
+
+                <h1 style="
+                font-size:34px;
+                margin-top:0px;
+                color:white;">
+
+                {value}
+
+                </h1>
+
+                </div>
+                """, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ==================================================
+        # TOP MATCHES
+        # ==================================================
+
+        st.markdown("""
+        <h2 style="color:white;">
+        🏆 Top Matches
+        </h2>
+        """, unsafe_allow_html=True)
+
+        cols = st.columns(3)
+
+        for col, candidate in zip(cols, results[:3]):
+
+            matched_html = ""
+
+            for skill in candidate["matched"]:
+
+                matched_html += f"""
+                <span class="skill">
+                {skill}
+                </span>
+                """
+
+            missing_html = ""
+
+            for skill in candidate["missing"]:
+
+                missing_html += f"""
+                <span class="skill missing">
+                {skill}
+                </span>
+                """
+
+            card_html = f"""
+
+            <html>
+
+            <body style="
+            margin:0;
+            background:transparent;
+            font-family:Inter,sans-serif;">
+
+            <div style="
+
+            background:
+            linear-gradient(
+                145deg,
+                #0f172a,
+                #131f3d
+            );
+
+            border:
+            1px solid rgba(255,255,255,0.05);
+
+            border-radius:24px;
+
+            padding:22px;
+
+            height:340px;
+
+            color:white;
+
+            box-shadow:
+            0px 10px 40px rgba(0,0,0,0.35);
+
+            ">
+
+                <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;">
+
+                    <div>
+
+                        <h2 style="
+                        margin-bottom:0px;
+                        color:white;
+                        font-size:22px;">
+
+                        {candidate["name"]}
+
+                        </h2>
+
+                        <p style="
+                        color:#94a3b8;
+                        font-size:14px;">
+
+                        {candidate["role"]}
+
+                        </p>
+
+                    </div>
+
+                    <div style="
+
+                    width:75px;
+                    height:75px;
+
+                    border-radius:50%;
+
+                    border:5px solid #22c55e;
+
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+
+                    font-size:24px;
+                    font-weight:800;
+
+                    color:white;
+
+                    ">
+
+                    {candidate["score"]}%
+
+                    </div>
+
+                </div>
+
+                <br>
+
+                <div style="
+                height:8px;
+                background:#1e293b;
+                border-radius:999px;
+                overflow:hidden;">
+
+                    <div style="
+                    width:{candidate["score"]}%;
+                    height:100%;
+                    background:
+                    linear-gradient(
+                        90deg,
+                        #22c55e,
+                        #3b82f6
+                    );">
+                    </div>
+
+                </div>
+
+                <br>
+
+                <h4 style="
+                color:white;
+                margin-bottom:8px;">
+
+                Matched Skills
+                </h4>
+
+                {matched_html}
+
+                <br><br>
+
+                <h4 style="
+                color:white;
+                margin-bottom:8px;">
+
+                Missing Skills
+                </h4>
+
+                {missing_html}
+
+            </div>
+
+            </body>
+
+            </html>
+
+            """
+
+            with col:
+
+                components.html(
+                    card_html,
+                    height=350,
+                    scrolling=False
+                )
+
+        # ==================================================
+        # RESULTS TABLE
+        # ==================================================
+
+        st.markdown("""
+        <h2 style="color:white;">
+        📋 All Results
+        </h2>
+        """, unsafe_allow_html=True)
+
+        table_data = []
+
+        for r in results:
+
+            table_data.append({
+
+                "Candidate": r["name"],
+                "ATS Score": f'{r["score"]}%',
+                "Suggested Role": r["role"],
+                "Matched Skills": ", ".join(r["matched"]),
+                "Missing Skills": ", ".join(r["missing"])
+
+            })
+
+        df = pd.DataFrame(table_data)
+
+        st.dataframe(
+            df,
+            use_container_width=True
+        )
