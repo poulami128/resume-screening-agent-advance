@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import pdfplumber
 import docx
-import re
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import streamlit.components.v1 as components
@@ -152,7 +151,10 @@ SKILLS = [
     "pandas","numpy","nlp","aws","docker","kubernetes",
     "html","css","javascript","react","flask","django",
     "data science","deep learning","opencv","power bi",
-    "excel","communication","leadership","api","git"
+    "excel","communication","leadership","api","git",
+    "sap","sap hana","abap","fiori","erp","cloud integration",
+    "debugging","data migration","spring boot","linux",
+    "devops","blockchain","solidity","ethereum"
 
 ]
 
@@ -225,7 +227,7 @@ def extract_skills(text):
 
         if skill.lower() in text:
 
-            found.append(skill.title())
+            found.append(skill.lower())
 
     return list(set(found))
 
@@ -291,34 +293,47 @@ if run:
 
             resume_skills = extract_skills(resume_text)
 
-            matched = [
-                skill for skill in resume_skills
-                if skill in jd_skills
-            ]
+            matched = list(
+                set(resume_skills).intersection(set(jd_skills))
+            )
 
-            missing = [
-                skill for skill in jd_skills
-                if skill not in resume_skills
-            ]
+            missing = list(
+                set(jd_skills).difference(set(resume_skills))
+            )
 
             role = "Software Engineer"
 
-            if "Machine Learning" in matched:
+            if "machine learning" in matched:
                 role = "ML Engineer"
 
-            elif "Tensorflow" in matched:
+            elif "tensorflow" in matched:
                 role = "AI Engineer"
 
-            elif "React" in matched:
+            elif "react" in matched:
                 role = "Frontend Developer"
+
+            elif "sap" in matched:
+                role = "SAP Developer"
+
+            elif "blockchain" in matched:
+                role = "Blockchain Developer"
+
+            elif "devops" in matched:
+                role = "DevOps Engineer"
 
             results.append({
 
                 "name": file.name,
                 "score": score,
                 "role": role,
-                "matched": matched[:6],
-                "missing": missing[:6]
+
+                "matched": [
+                    s.title() for s in matched[:6]
+                ],
+
+                "missing": [
+                    s.title() for s in missing[:6]
+                ]
 
             })
 
