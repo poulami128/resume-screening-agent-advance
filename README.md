@@ -23,7 +23,7 @@ Key capabilities:
 ## Demo Link
 Open the live demo here:
 
-https://resume-screening-agent-jwcznsj2yiokfmlhqcuxrs.streamlit.app/
+https://resume-screening-resumind.streamlit.app/
 
 
 
