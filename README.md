@@ -2,8 +2,8 @@
 
 **Category:** People & HR — Resume Screening Agent  
 **Built for:** AI Agent Development Challenge  
-**Author:** Your Name Here  
-**Demo:** https://<your-username>-resume-screening-agent.streamlit.app  
+**Author:** Poulami 
+**Demo:** https://resume-screening-resumind.streamlit.app
 **Repo:** https://github.com/poulami128/resume-screening-agent
 
 ---
