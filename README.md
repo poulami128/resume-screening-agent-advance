@@ -4,7 +4,8 @@
 **Built for:** AI Agent Development Challenge  
 **Author:** Poulami 
 **Demo:** https://resume-screening-resumind.streamlit.app
-**Repo:** https://github.com/poulami128/resume-screening-agent
+
+**Repo:** https://github.com/poulami128/resumind-ai-dashboard
 
 ---
 
