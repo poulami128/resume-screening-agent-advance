@@ -1,4 +1,4 @@
-# Resume Screening Agent
+# ResuMind AI Dashboard
 
 **Category:** People & HR — Resume Screening Agent  
 **Built for:** AI Agent Development Challenge  
